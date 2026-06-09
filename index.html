@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Luca's YuGiOh Deck Rarity Tool</title>
+<style>
+  :root {
+    --bg-color: #121212;
+    --surface-color: #1e1e1e;
+    --primary-color: #bb86fc;
+    --primary-hover: #9965f4;
+    --text-primary: #e0e0e0;
+    --text-secondary: #a0a0a0;
+    --border-color: #333333;
+    --danger-color: #cf6679;
+    --warning-color: #ffb86c;
+  }
+
+  body { 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+    padding: 2rem; 
+    max-width: 900px; 
+    margin: auto; 
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    line-height: 1.6;
+  }
+
+  h1 {
+    text-align: center;
+    color: var(--primary-color);
+    margin-bottom: 2rem;
+  }
+
+  .controls { 
+    margin-bottom: 2rem; 
+    padding: 1.5rem; 
+    background: var(--surface-color); 
+    border: 1px solid var(--border-color); 
+    border-radius: 8px; 
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+  }
+
+  .controls p { margin-top: 0; color: var(--text-secondary); }
+
+  input[type="file"] { display: block; margin-bottom: 1.5rem; color: var(--text-primary); }
+  input[type="file"]::file-selector-button {
+    padding: 0.5rem 1rem; border-radius: 4px; border: none; background-color: #333;
+    color: var(--text-primary); cursor: pointer; transition: background-color 0.2s;
+  }
+  input[type="file"]::file-selector-button:hover { background-color: #444; }
+
+  .toggle-label { font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
+  .toggle-group { margin-bottom: 1.5rem; }
+
+  .action-btn { 
+    padding: 0.6rem 1.2rem; cursor: pointer; background: var(--primary-color); 
+    color: #000; font-weight: bold; border: none; border-radius: 4px; 
+    transition: background 0.2s, transform 0.1s; 
+  }
+  .action-btn:hover { background: var(--primary-hover); }
+  .action-btn:active { transform: scale(0.98); }
+  .action-btn.secondary { background: #444; color: white; }
+  .action-btn.secondary:hover { background: #555; }
+
+  details { background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+  details.greyed-out { opacity: 0.5; filter: grayscale(100%); }
+  
+  summary { padding: 1rem 1.5rem; font-size: 1.2rem; font-weight: bold; cursor: pointer; background: #252525; border-radius: 8px; list-style: none; display: flex; justify-content: space-between; align-items: center; transition: background-color 0.2s; }
+  summary:hover { background: #2a2a2a; }
+  summary::after { content: '\25BC'; font-size: 0.9rem; color: var(--text-secondary); transition: transform 0.3s ease; }
+  details[open] summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: 1px solid var(--border-color); }
+  details[open] summary::after { transform: rotate(180deg); }
+  .details-content { padding: 1.5rem; }
+
+  .warning { color: var(--danger-color); background: rgba(207, 102, 121, 0.1); padding: 0.75rem; border-radius: 4px; border-left: 4px solid var(--danger-color); margin-bottom: 1.5rem; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border-bottom: 1px solid var(--border-color); padding: 0.75rem 1rem; text-align: left; }
+  th { background-color: #2a2a2a; color: var(--primary-color); font-weight: 600; }
+  tr:hover td { background-color: rgba(255, 255, 255, 0.05); }
+  .fallback-row td { color: var(--warning-color); }
+
+  select {
+    background-color: #333;
+    color: #fff;
+    border: 1px solid #555;
+    padding: 0.4rem;
+    border-radius: 4px;
+    font-family: inherit;
+    cursor: pointer;
+    max-width: 250px;
+  }
+  select:focus { outline: none; border-color: var(--primary-color); }
+
+  .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; align-items: center; justify-content: center; }
+  .modal.open { display: flex; }
+  .modal-content { background: var(--surface-color); padding: 2rem; border-radius: 8px; width: 90%; max-width: 500px; max-height: 85vh; display: flex; flex-direction: column; }
+  .modal-body { overflow-y: auto; padding-right: 0.5rem; margin-bottom: 1rem; flex-grow: 1; }
+  .dropzone { min-height: 60px; background: #1a1a1a; border: 2px dashed var(--border-color); padding: 0.5rem; border-radius: 4px; }
+  .rarity-item { padding: 0.75rem; background: #2a2a2a; border: 1px solid var(--border-color); margin-bottom: 0.5rem; cursor: grab; border-radius: 4px; user-select: none; color: var(--text-primary); }
+  .rarity-item:active { cursor: grabbing; }
+  .rarity-item.dragging { opacity: 0.5; background: var(--primary-color); color: #000; border-color: var(--primary-color); }
+  .exclude-line { text-align: center; color: var(--danger-color); font-weight: bold; margin: 1.5rem 0; border-top: 2px solid var(--danger-color); padding-top: 0.5rem; }
+  .modal-actions { display: flex; gap: 1rem; margin-top: auto; }
+  
+  hr.divider { border: 0; height: 1px; background: var(--border-color); margin: 2rem 0; }
+
+</style>
+</head>
+<body>
+
+<h1>YuGiOh Deck Rarity Checker</h1>
+
+<div class="controls">
+  <p>Select a YDK file to analyze your deck</p>
+  <input type="file" id="ydkFile" accept=".ydk">
+  
+  <div class="toggle-group">
+    <label class="toggle-label">
+      <input type="checkbox" id="oldBorderToggle">
+      Only use Old Border sets (released before August 2014)
+    </label>
+    <label class="toggle-label">
+      <input type="checkbox" id="combineRaritiesToggle" checked>
+      Combine similar rarities (Short Prints, Parallels, etc.)
+    </label>
+  </div>
+
+  <button id="btnManageRarities" class="action-btn">Manage Rarities</button>
+</div>
+
+<div id="results"></div>
+
+<div id="rarityModal" class="modal">
+  <div class="modal-content">
+    <h2 style="margin-top:0;">Manage Rarities</h2>
+    <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Drag to reorder priority. Items placed below the line will be completely ignored during calculation.</p>
+    
+    <div class="modal-body">
+      <div id="activeRarities" class="dropzone"></div>
+      <div class="exclude-line">Excluded Rarities Below</div>
+      <div id="excludedRarities" class="dropzone"></div>
+    </div>
+    
+    <div class="modal-actions">
+      <button id="btnSaveRarities" class="action-btn">Save & Close</button>
+      <button id="btnResetRarities" class="action-btn secondary">Reset Default</button>
+      <button id="btnCloseModal" class="action-btn secondary">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const defaultRarities = [
+  "10000 Secret Rare",
+  "Quarter Century Secret Rare",
+  "Starlight Rare",
+  "Ghost Rare",
+  "Ultimate Rare",
+  "Collector's Rare",
+  "Prismatic Secret Rare",
+  "Extra Secret Rare",
+  "Platinum Secret Rare",
+  "Ghost/Gold Rare",
+  "Gold Secret Rare",
+  "Duel Terminal Secret Parallel Rare",
+  "Secret Parallel Rare",
+  "Secret Rare",
+  "Ultra Rare (Pharaoh's Rare)",
+  "Duel Terminal Ultra Parallel Rare",
+  "Ultra Parallel Rare",
+  "Ultra Rare",
+  "Premium Gold Rare",
+  "Duel Terminal Super Parallel Rare",
+  "Super Parallel Rare",
+  "Super Rare",
+  "Platinum Rare",
+  "Gold Rare",
+  "Rare",
+  "Normal Rare",
+  "Super Short Print",
+  "Short Print",
+  "Duel Terminal Normal Parallel Rare",
+  "Normal Parallel Rare",
+  "Common"
+]
+
+let activeRarities = [];
+let excludedRarities = [];
+let setDates = {};
+
+let currentCardsData = null;
+let currentDeck = null;
+let currentTotalCards = 0;
+
+window.addEventListener('DOMContentLoaded', async () => {
+  loadSavedRarities();
+  try {
+    const res = await fetch('https://db.ygoprodeck.com/api/v7/cardsets.php');
+    const data = await res.json();
+    data.forEach(s => {
+      setDates[s.set_name] = s.tcg_date;
+    });
+  } catch (err) {
+    console.error('Error fetching sets', err);
+  }
+});
+
+function loadSavedRarities() {
+  const storedActive = localStorage.getItem('ygoActiveRarities');
+  const storedExcluded = localStorage.getItem('ygoExcludedRarities');
+  if (storedActive) {
+    activeRarities = JSON.parse(storedActive);
+    excludedRarities = JSON.parse(storedExcluded || '[]');
+  } else {
+    activeRarities = [...defaultRarities];
+    excludedRarities = [];
+  }
+}
+
+document.getElementById('ydkFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const text = await file.text();
+  const lines = text.split('\n');
+  const deck = {};
+
+  lines.forEach(line => {
+    const id = line.trim();
+    if (id && !isNaN(id)) {
+      deck[id] = (deck[id] || 0) + 1;
+    }
+  });
+
+  const uniqueIds = Object.keys(deck);
+  if (uniqueIds.length === 0) return alert('No valid cards found');
+
+  try {
+    const res = await fetch(`https://db.ygoprodeck.com/api/v7/cardinfo.php?id=${uniqueIds.join(',')}`);
+    const data = await res.json();
+    currentCardsData = data.data;
+    currentDeck = deck;
+    
+    currentTotalCards = 0;
+    for (const qty of Object.values(deck)) {
+      currentTotalCards += qty;
+    }
+    
+    runAnalysis();
+  } catch (error) {
+    alert('Failed to fetch card data');
+  }
+});
+
+document.getElementById('oldBorderToggle').addEventListener('change', () => {
+  if (currentCardsData) runAnalysis();
+});
+
+document.getElementById('combineRaritiesToggle').addEventListener('change', () => {
+  if (currentCardsData) runAnalysis();
+});
+
+function getBaseRarity(rarity) {
+  const combine = document.getElementById('combineRaritiesToggle').checked;
+  if (!combine) return rarity;
+
+  const groups = {
+    "Short Print": "Common",
+    "Super Short Print": "Common",
+    "Normal Rare": "Rare",
+    "Normal Parallel Rare": "Common",
+    "Super Parallel Rare": "Super Rare",
+    "Ultra Parallel Rare": "Ultra Rare",
+    "Secret Parallel Rare": "Secret Rare",
+  };
+  
+  return groups[rarity] || rarity;
+}
+
+function runAnalysis() {
+  const resultsDiv = document.getElementById('results');
+  resultsDiv.innerHTML = '';
+
+  const useOldBorder = document.getElementById('oldBorderToggle').checked;
+  const maxRarityDeck = [];
+  const cardsWithoutPrints = [];
+  const validRaritiesFound = new Set();
+  
+  const primarySections = [];
+  const greyedOutSections = [];
+
+  currentCardsData.forEach(card => {
+    const qty = currentDeck[card.id] || 0;
+    const sets = card.card_sets || [];
+    
+    let validSets = sets;
+    if (useOldBorder) {
+      validSets = sets.filter(s => {
+        const rDate = setDates[s.set_name];
+        return rDate && rDate < '2014-08-14';
+      });
+    }
+
+    let bestSet = null;
+    let bestScore = Infinity;
+    let allValidSetsForCard = [];
+
+    validSets.forEach(set => {
+      if (excludedRarities.includes(set.set_rarity)) return;
+      
+      validRaritiesFound.add(getBaseRarity(set.set_rarity));
+      
+      let score = activeRarities.indexOf(set.set_rarity);
+      if (score === -1) score = 999; 
+      
+      allValidSetsForCard.push({ set: set, score: score });
+
+      if (score < bestScore) {
+        bestScore = score;
+        bestSet = set;
+      }
+    });
+
+    if (!bestSet) {
+      cardsWithoutPrints.push(card.name);
+    } else {
+      allValidSetsForCard.sort((a, b) => a.score - b.score);
+      const uniqueSetsMap = new Map();
+      allValidSetsForCard.forEach(item => {
+        if (!uniqueSetsMap.has(item.set.set_code)) {
+          uniqueSetsMap.set(item.set.set_code, item.set);
+        }
+      });
+
+      maxRarityDeck.push({
+        qty: qty,
+        name: card.name,
+        rarity: bestSet.set_rarity,
+        setCode: bestSet.set_code,
+        availableSets: Array.from(uniqueSetsMap.values()),
+        isFallback: false
+      });
+    }
+  });
+
+  const maxRaritySection = createSection('Max Rarity Decklist', maxRarityDeck, cardsWithoutPrints, false);
+  primarySections.push(maxRaritySection);
+
+  validRaritiesFound.forEach(targetRarity => {
+    const sameRarityDeck = [];
+    const trulyMissingCards = [];
+    let matchingCount = 0;
+
+    currentCardsData.forEach(card => {
+      const qty = currentDeck[card.id] || 0;
+      const sets = card.card_sets || [];
+      
+      let validSets = sets;
+      if (useOldBorder) {
+        validSets = sets.filter(s => {
+          const rDate = setDates[s.set_name];
+          return rDate && rDate < '2014-08-14';
+        });
+      }
+
+      let validSetsInGroup = [];
+      let allValidSetsForCard = [];
+
+      validSets.forEach(s => {
+        if (excludedRarities.includes(s.set_rarity)) return;
+        
+        let score = activeRarities.indexOf(s.set_rarity);
+        if (score === -1) score = 999;
+        
+        allValidSetsForCard.push({ set: s, score: score });
+
+        if (getBaseRarity(s.set_rarity) === targetRarity) {
+          validSetsInGroup.push({ set: s, score: score });
+        }
+      });
+
+      if (validSetsInGroup.length > 0) {
+        validSetsInGroup.sort((a, b) => a.score - b.score);
+        
+        const uniqueSetsMap = new Map();
+        validSetsInGroup.forEach(item => {
+          if (!uniqueSetsMap.has(item.set.set_code)) {
+            uniqueSetsMap.set(item.set.set_code, item.set);
+          }
+        });
+        
+        const availableSets = Array.from(uniqueSetsMap.values());
+        const bestSetInGroup = availableSets[0];
+
+        sameRarityDeck.push({
+          qty: qty,
+          name: card.name,
+          rarity: bestSetInGroup.set_rarity,
+          setCode: bestSetInGroup.set_code,
+          availableSets: availableSets,
+          isFallback: false
+        });
+        matchingCount += qty;
+      } else if (allValidSetsForCard.length > 0) {
+        allValidSetsForCard.sort((a, b) => a.score - b.score);
+        
+        const uniqueSetsMap = new Map();
+        allValidSetsForCard.forEach(item => {
+          if (!uniqueSetsMap.has(item.set.set_code)) {
+            uniqueSetsMap.set(item.set.set_code, item.set);
+          }
+        });
+        
+        const availableSets = Array.from(uniqueSetsMap.values());
+        const fallbackSet = availableSets[0];
+
+        sameRarityDeck.push({
+          qty: qty,
+          name: card.name,
+          rarity: fallbackSet.set_rarity,
+          setCode: fallbackSet.set_code,
+          availableSets: availableSets,
+          isFallback: true
+        });
+      } else {
+        trulyMissingCards.push(card.name);
+      }
+    });
+
+    if (matchingCount > 0) {
+      const matchRatio = matchingCount / currentTotalCards;
+      const isGreyedOut = matchRatio < 0.9;
+      const section = createSection(`All: ${targetRarity} (${matchingCount}/${currentTotalCards} cards)`, sameRarityDeck, trulyMissingCards, isGreyedOut);
+      
+      if (isGreyedOut) {
+        greyedOutSections.push(section);
+      } else {
+        primarySections.push(section);
+      }
+    }
+  });
+
+  primarySections.forEach(section => resultsDiv.appendChild(section));
+
+  if (greyedOutSections.length > 0) {
+    const divider = document.createElement('hr');
+    divider.className = 'divider';
+    resultsDiv.appendChild(divider);
+
+    greyedOutSections.forEach(section => resultsDiv.appendChild(section));
+  }
+}
+
+function createSection(titleText, deckList, missingCards = [], isGreyedOut = false) {
+  const details = document.createElement('details');
+  if (isGreyedOut) details.classList.add('greyed-out');
+
+  const summary = document.createElement('summary');
+  summary.textContent = titleText;
+  details.appendChild(summary);
+
+  const contentDiv = document.createElement('div');
+  contentDiv.className = 'details-content';
+
+  const btn = document.createElement('button');
+  btn.textContent = 'Export to Cardmarket Wants List';
+  btn.className = 'action-btn';
+  btn.style.marginBottom = '1.5rem';
+  btn.onclick = () => exportToTxt(titleText, deckList);
+  contentDiv.appendChild(btn);
+
+  if (missingCards.length > 0) {
+    const p = document.createElement('p');
+    p.className = 'warning';
+    p.innerHTML = 'Cards missing completely under current filters: ' + missingCards.join(', ');
+    contentDiv.appendChild(p);
+  }
+
+  if (deckList.length > 0) {
+    const table = document.createElement('table');
+    table.innerHTML = `<tr><th>Qty</th><th>Name</th><th>Rarity</th><th>Set Code</th></tr>`;
+    
+    deckList.forEach(item => {
+      const tr = document.createElement('tr');
+      if (item.isFallback) tr.className = 'fallback-row';
+      
+      const tdQty = document.createElement('td');
+      tdQty.textContent = item.qty;
+      
+      const tdName = document.createElement('td');
+      tdName.textContent = item.name + (item.isFallback ? ' (No Match)' : '');
+      
+      const tdRarity = document.createElement('td');
+      const tdSetCode = document.createElement('td');
+      tdSetCode.textContent = item.setCode;
+
+      if (item.availableSets && item.availableSets.length > 1) {
+        const select = document.createElement('select');
+        item.availableSets.forEach(set => {
+          const option = document.createElement('option');
+          option.value = set.set_code;
+          option.dataset.rarity = set.set_rarity;
+          option.textContent = `${set.set_rarity} (${set.set_code})`;
+          if (set.set_code === item.setCode) {
+            option.selected = true;
+          }
+          select.appendChild(option);
+        });
+
+        select.addEventListener('change', () => {
+          const selectedOption = select.options[select.selectedIndex];
+          item.rarity = selectedOption.dataset.rarity;
+          item.setCode = selectedOption.value;
+          tdSetCode.textContent = item.setCode;
+        });
+        
+        tdRarity.appendChild(select);
+      } else {
+        tdRarity.textContent = item.rarity;
+      }
+
+      tr.appendChild(tdQty);
+      tr.appendChild(tdName);
+      tr.appendChild(tdRarity);
+      tr.appendChild(tdSetCode);
+      table.appendChild(tr);
+    });
+
+    contentDiv.appendChild(table);
+  }
+
+  details.appendChild(contentDiv);
+  return details;
+}
+
+function exportToTxt(filename, deckList) {
+  let content = '';
+  deckList.forEach(item => {
+    content += `${item.qty}x ${item.name} (${item.setCode})\n`;
+  });
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${filename.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+const modal = document.getElementById('rarityModal');
+const activeZone = document.getElementById('activeRarities');
+const excludedZone = document.getElementById('excludedRarities');
+
+document.getElementById('btnManageRarities').onclick = () => {
+  renderModalLists(activeRarities, excludedRarities);
+  modal.classList.add('open');
+};
+
+document.getElementById('btnCloseModal').onclick = () => {
+  modal.classList.remove('open');
+};
+
+document.getElementById('btnResetRarities').onclick = () => {
+  renderModalLists(defaultRarities, []);
+};
+
+document.getElementById('btnSaveRarities').onclick = () => {
+  const newActive = [...activeZone.querySelectorAll('.rarity-item')].map(el => el.textContent);
+  const newExcluded = [...excludedZone.querySelectorAll('.rarity-item')].map(el => el.textContent);
+  
+  activeRarities = newActive;
+  excludedRarities = newExcluded;
+  
+  localStorage.setItem('ygoActiveRarities', JSON.stringify(activeRarities));
+  localStorage.setItem('ygoExcludedRarities', JSON.stringify(excludedRarities));
+  
+  modal.classList.remove('open');
+  if (currentCardsData) runAnalysis();
+};
+
+function renderModalLists(activeList, excludedList) {
+  activeZone.innerHTML = '';
+  excludedZone.innerHTML = '';
+  activeList.forEach(r => activeZone.appendChild(createDraggableItem(r)));
+  excludedList.forEach(r => excludedZone.appendChild(createDraggableItem(r)));
+}
+
+function createDraggableItem(text) {
+  const div = document.createElement('div');
+  div.className = 'rarity-item';
+  div.draggable = true;
+  div.textContent = text;
+  
+  div.addEventListener('dragstart', () => {
+    div.classList.add('dragging');
+  });
+  
+  div.addEventListener('dragend', () => {
+    div.classList.remove('dragging');
+  });
+  return div;
+}
+
+[activeZone, excludedZone].forEach(zone => {
+  zone.addEventListener('dragover', e => {
+    e.preventDefault();
+    const afterElement = getDragAfterElement(zone, e.clientY);
+    const draggable = document.querySelector('.dragging');
+    if (!draggable) return;
+    
+    if (afterElement == null) {
+      zone.appendChild(draggable);
+    } else {
+      zone.insertBefore(draggable, afterElement);
+    }
+  });
+});
+
+function getDragAfterElement(container, y) {
+  const draggableElements = [...container.querySelectorAll('.rarity-item:not(.dragging)')];
+  return draggableElements.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    if (offset < 0 && offset > closest.offset) {
+      return { offset: offset, element: child };
+    } else {
+      return closest;
+    }
+  }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+</script>
+</body>
+</html>
