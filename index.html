@@ -109,7 +109,7 @@
 </head>
 <body>
 
-<h1>YuGiOh Deck Rarity Checker</h1>
+<h1>Luca's YuGiOh Deck Rarity Tool</h1>
 
 <div class="controls">
   <p>Select a YDK file to analyze your deck</p>
@@ -183,7 +183,7 @@ const defaultRarities = [
   "Duel Terminal Normal Parallel Rare",
   "Normal Parallel Rare",
   "Common"
-]
+];
 
 let activeRarities = [];
 let excludedRarities = [];
@@ -193,11 +193,30 @@ let currentCardsData = null;
 let currentDeck = null;
 let currentTotalCards = 0;
 
+async function fetchWithCache(url, cacheHours = 24) {
+  const timestampKey = url + '_time';
+  const cachedTime = localStorage.getItem(timestampKey);
+  const now = Date.now();
+
+  const cache = await caches.open('ygoDataCache');
+  const cachedResponse = await cache.match(url);
+
+  if (cachedResponse && cachedTime && (now - cachedTime < cacheHours * 3600000)) {
+    return await cachedResponse.json();
+  }
+
+  const response = await fetch(url);
+  if (response.ok) {
+    await cache.put(url, response.clone());
+    localStorage.setItem(timestampKey, now);
+  }
+  return await response.json();
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
   loadSavedRarities();
   try {
-    const res = await fetch('https://db.ygoprodeck.com/api/v7/cardsets.php');
-    const data = await res.json();
+    const data = await fetchWithCache('https://db.ygoprodeck.com/api/v7/cardsets.php');
     data.forEach(s => {
       setDates[s.set_name] = s.tcg_date;
     });
@@ -237,8 +256,7 @@ document.getElementById('ydkFile').addEventListener('change', async (e) => {
   if (uniqueIds.length === 0) return alert('No valid cards found');
 
   try {
-    const res = await fetch(`https://db.ygoprodeck.com/api/v7/cardinfo.php?id=${uniqueIds.join(',')}`);
-    const data = await res.json();
+    const data = await fetchWithCache(`https://db.ygoprodeck.com/api/v7/cardinfo.php?id=${uniqueIds.join(',')}`);
     currentCardsData = data.data;
     currentDeck = deck;
     
